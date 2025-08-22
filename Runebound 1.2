@@ -122,6 +122,7 @@ def get_ore_value(ore):
     all_ores = get_all_ores()
     return all_ores.get(ore,0)
 
+# --- Help Menu ---
 def show_help():
     print("--- Help ---")
     print("stats - Show your stats")
@@ -132,7 +133,6 @@ def show_help():
     print("upgrade - Buy an upgrade")
     print("use - Use an item from your bag")
     print("save - Export a save code")
-    print("load [save code] - Load a save code")
     if gamemode=="creative":
         print("give [item] [amount] - Spawn items or ores")
         print("sethp [amount] - Set HP")
@@ -143,7 +143,7 @@ def show_help():
         print("gamemode [s/c] - Switch gamemode")
     print("---------------")
 
-# --- Save/Load System (robust) ---
+# --- Save/Load System ---
 def export_save_code():
     save_data = {
         "name": name,"hp":hp,"xp":xp,"level":level,"gold":gold,"bag_limit":bag_limit,
@@ -159,7 +159,6 @@ def export_save_code():
 def import_save_code(code):
     global name,hp,xp,level,gold,bag_limit,bag,pickaxe,pickaxe_dur,sword,sword_dur,gamemode
     try:
-        # strip separators and whitespace
         code = code.replace("----- SAVE CODE START -----","").replace("----- SAVE CODE END -----","").strip()
         save_data=json.loads(base64.b64decode(code).decode())
         name=save_data.get("name",name)
@@ -178,8 +177,7 @@ def import_save_code(code):
     except Exception as e:
         print("Invalid save code:", e)
 
-# --- Game Loop ---
-# Ask for load first
+# --- Game Start Menu ---
 while True:
     start_choice=input("1) New Game\n2) Load Game\nChoose: ").strip()
     if start_choice=="1":
@@ -199,6 +197,7 @@ while True:
     else:
         print("Invalid choice.")
 
+# --- Upgrades ---
 def get_upgrade(upgrade_name):
     global pickaxe,pickaxe_dur,sword,sword_dur,gold,bag_limit,hp,bag,shield_uses
     if upgrade_name=="pickaxe":
@@ -230,7 +229,7 @@ def get_upgrade(upgrade_name):
         if gamemode=="creative" or gold>=cost:
             if gamemode!="creative": gold-=cost
             bag_limit+=1
-            print(f"Bag expanded! New limit: {bag_limit}")
+            print(f"Bag expanded! New bag limit: {bag_limit}")
         else: print(f"Not enough Gold. Cost: {cost}")
     elif upgrade_name=="hp":
         cost=500
@@ -248,6 +247,7 @@ def get_upgrade(upgrade_name):
         else: print(f"Not enough Gold. Cost: {cost}")
     else: print("Unknown upgrade.")
 
+# --- Use Item ---
 def use_item(item_name):
     global hp,xp,bag
     if item_name not in bag or bag[item_name]<=0:
@@ -284,7 +284,6 @@ while True:
     elif action.startswith("use "):
         use_item(action.split()[1])
     elif action=="save": export_save_code()
-    elif action.startswith("load "): import_save_code(action[5:])
     elif gamemode=="creative":
         if action.startswith("give "):
             parts=action.split()
