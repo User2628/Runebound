@@ -1,1 +1,264 @@
+import difflib
+
+# --- Setup ---
+character_name = input("Enter your character's name: ")
+print(f"Welcome, {character_name}! Your adventure begins now.")
+
+# Game mode selection (allows s/c or full names)
+game_mode_input = input("Choose your game mode (Survival/Creative): ").strip().lower()
+if game_mode_input == "s":
+    game_mode = "survival"
+elif game_mode_input == "c":
+    game_mode = "creative"
+elif game_mode_input in ["survival", "creative"]:
+    game_mode = game_mode_input
+else:
+    game_mode = "survival"  # Default to survival
+
+# Tracks if user has switched mode from Creative
+gamemode_switched = False
+
+print(f"You are playing in {game_mode.capitalize()} mode.")
+
+# --- Player Stats ---
+hp = 100
+xp = 0
+level = 1
+gold = 0
+bag = {}
+bag_slots = 6
+max_hp = 100
+xp_multiplier = 1  # For double XP
+
+# --- Items ---
+item_effects = {
+    "bread": 30,
+    "cheese": 20,
+    "apple": 15,
+    "carrot": 10,
+    "golden_apple": 90
+}
+
+# --- Upgrades ---
+upgrades = {
+    "bag_expansion": {"cost": 200, "effect": "increase_bag"},
+    "double_xp": {"cost": 500, "effect": "double_xp"},
+    "max_hp_boost": {"cost": 400, "effect": "increase_max_hp"}
+}
+
+# --- Functions ---
+def display_stats():
+    print("-"*30)
+    print(f"Name : {character_name}")
+    print(f"HP   : {hp}/{max_hp}")
+    print(f"XP   : {xp}/100")
+    print(f"Level: {level}")
+    print(f"Gold : {gold}")
+    print("-"*30)
+
+def display_bag():
+    print("-"*30)
+    print("           BAG")
+    print("-"*30)
+    if not bag:
+        print("Your bag is empty.")
+    else:
+        for item, amount in bag.items():
+            print(f"{item.replace('_',' ').title()} x{amount}")
+    print(f"Slots Used: {sum(bag.values())}/{bag_slots}")
+    print("-"*30)
+
+def display_help():
+    print("-"*30)
+    print("           HELP MENU")
+    print("-"*30)
+    print("stats        --- Show your character's stats")
+    print("bag          --- Show the contents of your bag")
+    print("use [item]   --- Use an item from your bag")
+    print("upgrade      --- Visit the upgrade shop")
+
+    # Show gamemode only if in Creative or previously switched from Creative
+    if game_mode == "creative" or gamemode_switched:
+        print("gamemode     --- Switch game modes")
+
+    if game_mode == "creative":
+        print("give [item] [amount] --- Add items, gold, or XP")
+        print("sethp [amount]        --- Set your HP directly")
+        print("setxp [amount]        --- Set your XP directly")
+        print("setgold [amount]      --- Set your Gold directly")
+        print("setlevel [amount]     --- Set your Level directly")
+        print("setbag [slots]        --- Set your bag capacity")
+        print("getupgrade [upgrade]  --- Instantly receive an upgrade")
+
+    print("-"*30)
+
+def apply_upgrade(upgrade_name):
+    global bag_slots, xp_multiplier, max_hp
+    effect = upgrades[upgrade_name]["effect"]
+    if effect == "increase_bag":
+        bag_slots += 1
+        print(f"{character_name} upgraded! Bag slots increased to {bag_slots}.")
+    elif effect == "double_xp":
+        xp_multiplier = 2
+        print(f"{character_name} upgraded! XP gain is now doubled.")
+    elif effect == "increase_max_hp":
+        max_hp += 20
+        print(f"{character_name} upgraded! Max HP increased to {max_hp}.")
+
+def level_up():
+    global xp, level
+    while xp >= 100:
+        xp -= 100
+        level += 1
+        print(f"{character_name} leveled up! Now Level {level}.")
+
+# --- Main Loop ---
+while True:
+    command = input(f"{character_name}, what will you do next? ").strip().lower()
+    if not command:
+        continue
+    command_parts = command.split()
+    base_command = command_parts[0]
+
+    # --- General Commands ---
+    if base_command == "stats":
+        display_stats()
+
+    elif base_command == "bag":
+        display_bag()
+
+    elif base_command == "use" and len(command_parts) == 2:
+        item = command_parts[1]
+        if item in bag and bag[item] > 0:
+            heal = item_effects.get(item, 0)
+            if hp < max_hp:
+                heal_amount = min(heal, max_hp - hp)
+                hp += heal_amount
+                overflow = heal - heal_amount
+                if overflow > 0:
+                    xp += overflow * xp_multiplier
+                    level_up()
+                print(f"{character_name} used {item.replace('_',' ')}! Restored {heal_amount} HP.")
+            else:
+                xp += heal * xp_multiplier
+                level_up()
+                print(f"{character_name} is at full HP! Converted {heal} points into XP.")
+            if item == "golden_apple":
+                gold += 50
+                print("Golden Apple bonus! +50 Gold.")
+            bag[item] -= 1
+            if bag[item] == 0:
+                del bag[item]
+        else:
+            print("You don't have that item.")
+
+    elif base_command == "upgrade":
+        print("-"*30)
+        print("         UPGRADE SHOP")
+        print("-"*30)
+        for upg, data in upgrades.items():
+            print(f"{upg.replace('_', ' ').title()} --- {data['cost']} Gold")
+        print("-"*30)
+        choice = input("Which upgrade would you like to buy? ").lower().replace(" ", "_")
+        if choice in upgrades:
+            if game_mode == "creative" or gold >= upgrades[choice]["cost"]:
+                if game_mode != "creative":
+                    gold -= upgrades[choice]["cost"]
+                apply_upgrade(choice)
+            else:
+                print("Not enough gold!")
+        else:
+            print("Invalid upgrade.")
+
+    elif base_command == "help":
+        display_help()
+
+    # --- Creative Commands ---
+    elif game_mode == "creative":
+        if base_command == "give" and len(command_parts) >= 2:
+            item = command_parts[1]
+            try:
+                amount = int(command_parts[2]) if len(command_parts) == 3 else 1
+                if amount < 1:
+                    print("Invalid amount. Must be a positive integer.")
+                    continue
+            except ValueError:
+                print("Invalid amount. Must be a positive integer.")
+                continue
+
+            if item in item_effects:
+                if sum(bag.values()) + amount <= bag_slots:
+                    bag[item] = bag.get(item, 0) + amount
+                    print(f"Gave {amount} {item.replace('_',' ')}(s).")
+                else:
+                    print("Not enough bag space!")
+            elif item == "gold":
+                gold += amount
+                print(f"Gave {amount} Gold.")
+            elif item == "xp":
+                xp += amount * xp_multiplier
+                level_up()
+                print(f"Gave {amount} XP.")
+            else:
+                print("Unknown item.")
+
+        elif base_command == "sethp" and len(command_parts) == 2:
+            try:
+                hp = max(0, min(max_hp, int(command_parts[1])))
+                print(f"HP set to {hp}.")
+            except ValueError:
+                print("Invalid value.")
+
+        elif base_command == "setxp" and len(command_parts) == 2:
+            try:
+                xp = int(command_parts[1])
+                level_up()
+                print(f"XP set to {xp}.")
+            except ValueError:
+                print("Invalid value.")
+
+        elif base_command == "setgold" and len(command_parts) == 2:
+            try:
+                gold = int(command_parts[1])
+                print(f"Gold set to {gold}.")
+            except ValueError:
+                print("Invalid value.")
+
+        elif base_command == "setlevel" and len(command_parts) == 2:
+            try:
+                level = max(1, int(command_parts[1]))
+                print(f"Level set to {level}.")
+            except ValueError:
+                print("Invalid value.")
+
+        elif base_command == "setbag" and len(command_parts) == 2:
+            try:
+                bag_slots = max(1, int(command_parts[1]))
+                print(f"Bag capacity set to {bag_slots}.")
+            except ValueError:
+                print("Invalid value.")
+
+        elif base_command == "getupgrade" and len(command_parts) == 2:
+            upgrade_name = command_parts[1].lower()
+            if upgrade_name in upgrades:
+                apply_upgrade(upgrade_name)
+                print(f"{character_name} received the upgrade {upgrade_name.replace('_',' ').title()} (Creative mode).")
+            else:
+                print("Invalid upgrade.")
+
+        elif base_command == "gamemode" and len(command_parts) == 2:
+            choice = command_parts[1].lower()
+            if choice in ["s", "survival"]:
+                game_mode = "survival"
+                gamemode_switched = True
+                print("Game mode switched to Survival.")
+            elif choice in ["c", "creative"]:
+                game_mode = "creative"
+                gamemode_switched = True
+                print("Game mode switched to Creative.")
+            else:
+                print("Invalid mode. Use 's' or 'c'.")
+
+    else:
+        print("Unknown command. Type 'help' to see available options.")
 
