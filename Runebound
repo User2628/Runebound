@@ -1,4 +1,4 @@
-import difflib
+# Simple RPG CLI with Upgrades and Creative Mode
 
 # --- Setup ---
 character_name = input("Enter your character's name: ")
@@ -8,14 +8,18 @@ print(f"Welcome, {character_name}! Your adventure begins now.")
 game_mode_input = input("Choose your game mode (Survival/Creative): ").strip().lower()
 if game_mode_input == "s":
     game_mode = "survival"
+    started_in_creative = False
 elif game_mode_input == "c":
     game_mode = "creative"
+    started_in_creative = True
 elif game_mode_input in ["survival", "creative"]:
     game_mode = game_mode_input
+    started_in_creative = (game_mode == "creative")
 else:
     game_mode = "survival"  # Default to survival
+    started_in_creative = False
 
-# Tracks if user has switched mode from Creative
+# Tracks if user has switched mode at least once (only applies if started in Creative)
 gamemode_switched = False
 
 print(f"You are playing in {game_mode.capitalize()} mode.")
@@ -77,7 +81,7 @@ def display_help():
     print("use [item]   --- Use an item from your bag")
     print("upgrade      --- Visit the upgrade shop")
 
-    # Show gamemode only if in Creative or previously switched from Creative
+    # Show gamemode if in Creative or has switched before
     if game_mode == "creative" or gamemode_switched:
         print("gamemode     --- Switch game modes")
 
@@ -173,6 +177,20 @@ while True:
     elif base_command == "help":
         display_help()
 
+    # --- Gamemode Command (works if started in Creative) ---
+    elif base_command == "gamemode" and started_in_creative and len(command_parts) == 2:
+        choice = command_parts[1].lower()
+        if choice in ["s", "survival"]:
+            game_mode = "survival"
+            gamemode_switched = True
+            print("Game mode switched to Survival.")
+        elif choice in ["c", "creative"]:
+            game_mode = "creative"
+            gamemode_switched = True
+            print("Game mode switched to Creative.")
+        else:
+            print("Invalid mode. Use 's' or 'c'.")
+
     # --- Creative Commands ---
     elif game_mode == "creative":
         if base_command == "give" and len(command_parts) >= 2:
@@ -246,19 +264,5 @@ while True:
             else:
                 print("Invalid upgrade.")
 
-        elif base_command == "gamemode" and len(command_parts) == 2:
-            choice = command_parts[1].lower()
-            if choice in ["s", "survival"]:
-                game_mode = "survival"
-                gamemode_switched = True
-                print("Game mode switched to Survival.")
-            elif choice in ["c", "creative"]:
-                game_mode = "creative"
-                gamemode_switched = True
-                print("Game mode switched to Creative.")
-            else:
-                print("Invalid mode. Use 's' or 'c'.")
-
     else:
         print("Unknown command. Type 'help' to see available options.")
-
