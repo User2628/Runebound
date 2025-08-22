@@ -142,7 +142,7 @@ def show_help():
         print("setgold [amount] - Set Gold")
         print("setlevel [amount] - Set Level")
         print("setbag [amount] - Set Bag Limit")
-        print("gamemode [s/c] - Switch gamemode")
+    print("gamemode [s/c] - Switch gamemode")
     print("---------------")
 
 # --- Save/Load System ---
@@ -254,10 +254,7 @@ def use_item(item_name):
     global hp,xp,bag
     if item_name not in bag or bag[item_name]<=0:
         print("You don't have that item."); return
-
-    # Decrement count first
     bag[item_name]-=1
-
     if item_name in food_items:
         heal_amount=food_items[item_name]
         actual_heal=min(heal_amount,100-hp)
@@ -272,8 +269,7 @@ def use_item(item_name):
         print(f"You used the shield. Remaining uses: {bag.get('shield',0)}")
         if bag.get("shield",0)<=0: del bag["shield"]; print("Your shield has broken!")
     else: print(f"{item_name} cannot be used.")
-
-    if bag[item_name]<=0: del bag[item_name]
+    if bag.get(item_name,0)<=0: bag.pop(item_name,None)
 
 # --- Main Game Loop ---
 while True:
@@ -290,14 +286,19 @@ while True:
     elif action.startswith("use "):
         use_item(action.split()[1])
     elif action=="save": export_save_code()
+    elif action.startswith("gamemode "):
+        gm = action.split()[1].lower()
+        if gm in ["c","creative"]:
+            gamemode="creative"; print("Gamemode set to Creative.")
+        elif gm in ["s","survival"]:
+            gamemode="survival"; print("Gamemode set to Survival.")
+        else: print("Invalid gamemode. Use 's' or 'c'.")
     elif gamemode=="creative":
         if action.startswith("give "):
             parts=action.split()
             if len(parts)==3 and parts[2].isdigit():
                 item,amount=parts[1],int(parts[2])
-                if len(bag)<bag_limit:
-                    bag[item]=bag.get(item,0)+amount
-                    print(f"Gave {amount} {item}(s).")
+                if len(bag)<bag_limit: bag[item]=bag.get(item,0)+amount; print(f"Gave {amount} {item}(s).")
                 else: print("Bag full!")
             else: print("Usage: give [item] [amount]")
         elif action.startswith("sethp "): hp=int(action.split()[1])
@@ -305,8 +306,4 @@ while True:
         elif action.startswith("setgold "): gold=int(action.split()[1])
         elif action.startswith("setlevel "): level=int(action.split()[1])
         elif action.startswith("setbag "): bag_limit=int(action.split()[1])
-        elif action.startswith("gamemode "):
-            gm=action.split()[1]
-            if gm in ["c","creative"]: gamemode="creative"; print("Gamemode set to Creative.")
-            elif gm in ["s","survival"]: gamemode="survival"; print("Gamemode set to Survival.")
     else: print("Unknown command. Type 'help'.")
