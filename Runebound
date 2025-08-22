@@ -67,7 +67,8 @@ food_items = {
     "cheese": 20,
     "apple": 15,
     "golden_apple": 90,
-    "carrot": 10
+    "carrot": 10,
+    "pie": 50
 }
 
 # --- Helper Functions ---
@@ -77,7 +78,6 @@ def get_all_ores():
         all_ores.update(tier_ores)
     return all_ores
 
-# --- Valid Items for Give Command ---
 valid_items = set(list(food_items.keys()) + ["gold"] + list(get_all_ores()))
 
 def level_up():
@@ -168,6 +168,7 @@ def show_help():
     print("sell [ore] - Sell all of that ore in your bag")
     print("sell all - Sell all ores in your bag")
     print("upgrade [pickaxe/sword/bag/maxhp] - Buy an upgrade")
+    print("use [food] - Use a food item from your bag")
     if gamemode == "creative":
         print("give [item] [amount] - Spawn items or ores")
         print("sethp [amount] - Set HP")
@@ -178,6 +179,7 @@ def show_help():
         print("gamemode [s/c] - Switch gamemode")
     print("---------------")
 
+# --- Upgrade Function ---
 def get_upgrade(upgrade_name):
     global pickaxe, pickaxe_dur, sword, sword_dur, gold, bag_limit, hp
 
@@ -232,6 +234,29 @@ def get_upgrade(upgrade_name):
     else:
         print("Unknown upgrade.")
 
+# --- Use Food Command ---
+def use_item(item_name):
+    global hp, xp, bag
+    if item_name not in bag or bag[item_name] <= 0:
+        print("You don't have that item.")
+        return
+    if item_name not in food_items:
+        print(f"{item_name} cannot be used.")
+        return
+    heal_amount = food_items[item_name]
+    actual_heal = min(heal_amount, 100 - hp)
+    overflow = heal_amount - actual_heal
+    hp += actual_heal
+    if overflow > 0:
+        xp += overflow
+        print(f"HP full! Converted {overflow} excess into XP.")
+        level_up()
+    else:
+        print(f"You used {item_name} and restored {actual_heal} HP.")
+    bag[item_name] -= 1
+    if bag[item_name] == 0:
+        del bag[item_name]
+
 # --- Game Loop ---
 while True:
     action = input("> ").lower().strip()
@@ -251,6 +276,9 @@ while True:
     elif action.startswith("upgrade "):
         upgrade = action.split()[1]
         get_upgrade(upgrade)
+    elif action.startswith("use "):
+        item = action.split()[1]
+        use_item(item)
 
     # --- Creative Commands ---
     elif gamemode == "creative":
