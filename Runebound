@@ -71,6 +71,9 @@ food_items = {
     "pie": 50
 }
 
+# --- Shield Items ---
+shield_uses = 5  # Default uses when shield is obtained
+
 # --- Helper Functions ---
 def get_all_ores():
     all_ores = {}
@@ -78,7 +81,7 @@ def get_all_ores():
         all_ores.update(tier_ores)
     return all_ores
 
-valid_items = set(list(food_items.keys()) + ["gold"] + list(get_all_ores()))
+valid_items = set(list(food_items.keys()) + ["gold", "shield"] + list(get_all_ores()))
 
 def level_up():
     global xp, level
@@ -108,6 +111,7 @@ def show_bag():
     print(f"Slots used: {len(bag)}/{bag_limit}")
     print("------------")
 
+# --- Mining System: Can mine all ores of own tier and below ---
 def mine():
     global xp, gold, pickaxe_dur, pickaxe, bag
     rewards = pickaxe_rewards[pickaxe]
@@ -119,9 +123,13 @@ def mine():
         print(f"Your {pickaxe} Pickaxe broke! Resetting to Wooden.")
         pickaxe = "Wooden"
         pickaxe_dur = pickaxe_durability[pickaxe]
-    if pickaxe in ores_by_tier:
-        ores = ores_by_tier[pickaxe]
-        ore, value = random.choice(list(ores.items()))
+
+    tier_index = pickaxe_tiers.index(pickaxe)
+    available_ores = {}
+    for t in pickaxe_tiers[:tier_index + 1]:
+        available_ores.update(ores_by_tier.get(t, {}))
+    if available_ores:
+        ore, value = random.choice(list(available_ores.items()))
         amount = random.randint(1, 3)
         bag[ore] = bag.get(ore, 0) + amount
         print(f"You mined and found {amount} {ore}(s)!")
@@ -168,7 +176,7 @@ def show_help():
     print("sell [ore] - Sell all of that ore in your bag")
     print("sell all - Sell all ores in your bag")
     print("upgrade [pickaxe/sword/bag/maxhp] - Buy an upgrade")
-    print("use [food] - Use a food item from your bag")
+    print("use [food/shield] - Use an item from your bag")
     if gamemode == "creative":
         print("give [item] [amount] - Spawn items or ores")
         print("sethp [amount] - Set HP")
@@ -179,10 +187,8 @@ def show_help():
         print("gamemode [s/c] - Switch gamemode")
     print("---------------")
 
-# --- Upgrade Function ---
 def get_upgrade(upgrade_name):
-    global pickaxe, pickaxe_dur, sword, sword_dur, gold, bag_limit, hp
-
+    global pickaxe, pickaxe_dur, sword, sword_dur, gold, bag_limit, hp, shield_uses
     if upgrade_name == "pickaxe":
         if pickaxe != "Mithril":
             idx = pickaxe_tiers.index(pickaxe)
@@ -231,37 +237,50 @@ def get_upgrade(upgrade_name):
             print(f"Max HP increased by 20! Current HP: {hp}")
         else:
             print(f"Not enough Gold for Max HP upgrade. Cost: {cost}")
+    elif upgrade_name == "shield":
+        cost = 150
+        if gamemode == "creative" or gold >= cost:
+            if gamemode != "creative":
+                gold -= cost
+            bag["shield"] = shield_uses
+            print(f"Shield added to bag! Uses: {shield_uses}")
+        else:
+            print(f"Not enough Gold for Shield. Cost: {cost}")
     else:
         print("Unknown upgrade.")
 
-# --- Use Food Command ---
+# --- Use Item Command ---
 def use_item(item_name):
     global hp, xp, bag
     if item_name not in bag or bag[item_name] <= 0:
         print("You don't have that item.")
         return
-    if item_name not in food_items:
+    if item_name in food_items:
+        heal_amount = food_items[item_name]
+        actual_heal = min(heal_amount, 100 - hp)
+        overflow = heal_amount - actual_heal
+        hp += actual_heal
+        if overflow > 0:
+            xp += overflow
+            print(f"HP full! Converted {overflow} excess into XP.")
+            level_up()
+        else:
+            print(f"You used {item_name} and restored {actual_heal} HP.")
+    elif item_name == "shield":
+        bag["shield"] -= 1
+        print(f"You used the shield. Remaining uses: {bag['shield']}")
+        if bag["shield"] <= 0:
+            del bag["shield"]
+            print("Your shield has broken!")
+    else:
         print(f"{item_name} cannot be used.")
         return
-    heal_amount = food_items[item_name]
-    actual_heal = min(heal_amount, 100 - hp)
-    overflow = heal_amount - actual_heal
-    hp += actual_heal
-    if overflow > 0:
-        xp += overflow
-        print(f"HP full! Converted {overflow} excess into XP.")
-        level_up()
-    else:
-        print(f"You used {item_name} and restored {actual_heal} HP.")
-    bag[item_name] -= 1
-    if bag[item_name] == 0:
+    if item_name in bag and bag[item_name] <= 0:
         del bag[item_name]
 
 # --- Game Loop ---
 while True:
     action = input("> ").lower().strip()
-
-    # --- Common Commands ---
     if action == "stats":
         show_stats()
     elif action == "bag":
@@ -279,8 +298,6 @@ while True:
     elif action.startswith("use "):
         item = action.split()[1]
         use_item(item)
-
-    # --- Creative Commands ---
     elif gamemode == "creative":
         if action.startswith("give "):
             parts = action.split()
@@ -311,6 +328,5 @@ while True:
             elif gm in ["s", "survival"]:
                 gamemode = "survival"
                 print("Gamemode set to Survival.")
-
     else:
         print("Unknown command. Type 'help' for a list of commands.")
