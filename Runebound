@@ -70,10 +70,16 @@ food_items = {
     "carrot": 10
 }
 
+# --- Helper Functions ---
+def get_all_ores():
+    all_ores = {}
+    for tier_ores in ores_by_tier.values():
+        all_ores.update(tier_ores)
+    return all_ores
+
 # --- Valid Items for Give Command ---
 valid_items = set(list(food_items.keys()) + ["gold"] + list(get_all_ores()))
 
-# --- Helper Functions ---
 def level_up():
     global xp, level
     while xp >= 100:
@@ -150,12 +156,6 @@ def sell(item):
         else:
             print("You don't have that ore.")
 
-def get_all_ores():
-    all_ores = {}
-    for tier_ores in ores_by_tier.values():
-        all_ores.update(tier_ores)
-    return all_ores
-
 def get_ore_value(ore):
     all_ores = get_all_ores()
     return all_ores.get(ore, 0)
@@ -178,7 +178,6 @@ def show_help():
         print("gamemode [s/c] - Switch gamemode")
     print("---------------")
 
-# --- Upgrade Function ---
 def get_upgrade(upgrade_name):
     global pickaxe, pickaxe_dur, sword, sword_dur, gold, bag_limit, hp
 
