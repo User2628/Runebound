@@ -1,0 +1,305 @@
+import random
+import json
+import base64
+
+# --- Player Setup ---
+name = ""
+gamemode = ""
+hp = 100
+xp = 0
+level = 1
+gold = 0
+bag_limit = 6
+bag = {}
+
+pickaxe_tiers = ["Wooden", "Stone", "Iron", "Diamond", "Mithril"]
+pickaxe_durability = {"Wooden": 25, "Stone": 50, "Iron": 100, "Diamond": 200, "Mithril": 400}
+pickaxe_rewards = {"Wooden":{"xp":1,"gold":1},"Stone":{"xp":2,"gold":2},"Iron":{"xp":5,"gold":5},"Diamond":{"xp":10,"gold":15},"Mithril":{"xp":15,"gold":30}}
+pickaxe_upgrade_costs = {"Wooden":200,"Stone":400,"Iron":800,"Diamond":1500}
+pickaxe = "Wooden"
+pickaxe_dur = pickaxe_durability[pickaxe]
+
+sword_tiers = ["Wooden", "Stone", "Iron", "Diamond", "Mithril"]
+sword_durability = {"Wooden":25,"Stone":50,"Iron":100,"Diamond":200,"Mithril":400}
+sword_rewards = {"Wooden":{"xp":1,"gold":1},"Stone":{"xp":2,"gold":2},"Iron":{"xp":5,"gold":5},"Diamond":{"xp":10,"gold":15},"Mithril":{"xp":15,"gold":30}}
+sword_upgrade_costs = {"Wooden":200,"Stone":400,"Iron":800,"Diamond":1500}
+sword = "Wooden"
+sword_dur = sword_durability[sword]
+
+ores_by_tier = {"Wooden":{"stone":2,"coal":5},"Stone":{"iron_ore":8},"Iron":{"gold_ore":15},"Diamond":{"diamond_ore":38},"Mithril":{"mithril_ore":75}}
+food_items = {"bread":30,"cheese":20,"apple":15,"golden_apple":90,"carrot":10,"pie":50}
+shield_uses = 5
+
+valid_items = set(list(food_items.keys()) + ["gold","shield"] + [o for t in ores_by_tier.values() for o in t])
+
+def get_all_ores():
+    all_ores = {}
+    for tier_ores in ores_by_tier.values():
+        all_ores.update(tier_ores)
+    return all_ores
+
+def level_up():
+    global xp, level
+    while xp >= 100:
+        xp -= 100
+        level += 1
+        print(f"--- Level Up! You are now Level {level}! ---")
+
+def show_stats():
+    print("--- Player Stats ---")
+    print(f"Name: {name}")
+    print(f"HP: {hp}/100")
+    print(f"XP: {xp}")
+    print(f"Level: {level}")
+    print(f"Gold: {gold}")
+    print(f"Pickaxe: {pickaxe} ({pickaxe_dur}/{pickaxe_durability[pickaxe]} Durability)")
+    print(f"Sword: {sword} ({sword_dur}/{sword_durability[sword]} Durability)")
+    print("-------------------")
+
+def show_bag():
+    print("--- Bag ---")
+    if not bag:
+        print("Empty")
+    else:
+        for item, amount in bag.items():
+            print(f"{item} x{amount}")
+    print(f"Slots used: {len(bag)}/{bag_limit}")
+    print("------------")
+
+def mine():
+    global xp, gold, pickaxe_dur, pickaxe, bag
+    rewards = pickaxe_rewards[pickaxe]
+    xp += rewards["xp"]
+    gold += rewards["gold"]
+    level_up()
+    pickaxe_dur -= 1
+    if pickaxe_dur <= 0:
+        print(f"Your {pickaxe} Pickaxe broke! Resetting to Wooden.")
+        pickaxe = "Wooden"
+        pickaxe_dur = pickaxe_durability[pickaxe]
+
+    tier_index = pickaxe_tiers.index(pickaxe)
+    available_ores = {}
+    for t in pickaxe_tiers[:tier_index+1]:
+        available_ores.update(ores_by_tier.get(t, {}))
+    if available_ores:
+        ore, value = random.choice(list(available_ores.items()))
+        amount = random.randint(1,3)
+        bag[ore] = bag.get(ore,0)+amount
+        print(f"You mined and found {amount} {ore}(s)!")
+
+def sell(item):
+    global gold
+    if item=="all":
+        total_gold = 0
+        sold_any = False
+        for ore, amount in list(bag.items()):
+            ore_value = get_ore_value(ore)
+            if ore_value>0:
+                gold+=ore_value*amount
+                total_gold+=ore_value*amount
+                del bag[ore]
+                sold_any=True
+        if sold_any:
+            print(f"You sold all ores for {total_gold} Gold.")
+        else:
+            print("You have no ores to sell.")
+    else:
+        if item in bag:
+            ore_value=get_ore_value(item)
+            if ore_value>0:
+                amount=bag[item]
+                gold_gain=ore_value*amount
+                gold+=gold_gain
+                print(f"You sold {amount} {item}(s) for {gold_gain} Gold.")
+                del bag[item]
+            else:
+                print("That item cannot be sold as ore.")
+        else:
+            print("You don't have that ore.")
+
+def get_ore_value(ore):
+    all_ores = get_all_ores()
+    return all_ores.get(ore,0)
+
+def show_help():
+    print("--- Help ---")
+    print("stats - Show your stats")
+    print("bag - Show your bag")
+    print("mine - Mine ores and gain XP/Gold")
+    print("sell - Sell all of that ore in your bag")
+    print("sell all - Sell all ores in your bag")
+    print("upgrade - Buy an upgrade")
+    print("use - Use an item from your bag")
+    print("save - Export a save code")
+    print("load [save code] - Load a save code")
+    if gamemode=="creative":
+        print("give [item] [amount] - Spawn items or ores")
+        print("sethp [amount] - Set HP")
+        print("setxp [amount] - Set XP")
+        print("setgold [amount] - Set Gold")
+        print("setlevel [amount] - Set Level")
+        print("setbag [amount] - Set Bag Limit")
+        print("gamemode [s/c] - Switch gamemode")
+    print("---------------")
+
+# --- Save/Load System (robust) ---
+def export_save_code():
+    save_data = {
+        "name": name,"hp":hp,"xp":xp,"level":level,"gold":gold,"bag_limit":bag_limit,
+        "bag":bag,"pickaxe":pickaxe,"pickaxe_dur":pickaxe_dur,
+        "sword":sword,"sword_dur":sword_dur,"gamemode":gamemode
+    }
+    code = base64.b64encode(json.dumps(save_data).encode()).decode()
+    print("----- SAVE CODE START -----")
+    print(code)
+    print("----- SAVE CODE END -----")
+    print("Copy the code exactly between the lines above.")
+
+def import_save_code(code):
+    global name,hp,xp,level,gold,bag_limit,bag,pickaxe,pickaxe_dur,sword,sword_dur,gamemode
+    try:
+        # strip separators and whitespace
+        code = code.replace("----- SAVE CODE START -----","").replace("----- SAVE CODE END -----","").strip()
+        save_data=json.loads(base64.b64decode(code).decode())
+        name=save_data.get("name",name)
+        hp=save_data.get("hp",hp)
+        xp=save_data.get("xp",xp)
+        level=save_data.get("level",level)
+        gold=save_data.get("gold",gold)
+        bag_limit=save_data.get("bag_limit",bag_limit)
+        bag=save_data.get("bag",bag)
+        pickaxe=save_data.get("pickaxe",pickaxe)
+        pickaxe_dur=save_data.get("pickaxe_dur",pickaxe_durability[pickaxe])
+        sword=save_data.get("sword",sword)
+        sword_dur=save_data.get("sword_dur",sword_durability[sword])
+        gamemode=save_data.get("gamemode",gamemode)
+        print("Save code loaded successfully!")
+    except Exception as e:
+        print("Invalid save code:", e)
+
+# --- Game Loop ---
+# Ask for load first
+while True:
+    start_choice=input("1) New Game\n2) Load Game\nChoose: ").strip()
+    if start_choice=="1":
+        name=input("Enter your character's name: ")
+        while True:
+            gamemode_choice=input("Choose Game Mode (Survival or Creative): ").lower().strip()
+            if gamemode_choice in ["survival","s"]:
+                gamemode="survival"; break
+            elif gamemode_choice in ["creative","c"]:
+                gamemode="creative"; break
+            else: print("Invalid choice.")
+        break
+    elif start_choice=="2":
+        code=input("Paste your save code: ")
+        import_save_code(code)
+        break
+    else:
+        print("Invalid choice.")
+
+def get_upgrade(upgrade_name):
+    global pickaxe,pickaxe_dur,sword,sword_dur,gold,bag_limit,hp,bag,shield_uses
+    if upgrade_name=="pickaxe":
+        if pickaxe!="Mithril":
+            idx=pickaxe_tiers.index(pickaxe)
+            next_pickaxe=pickaxe_tiers[idx+1]
+            cost=pickaxe_upgrade_costs.get(pickaxe,0)
+            if gamemode=="creative" or gold>=cost:
+                if gamemode!="creative": gold-=cost
+                pickaxe=next_pickaxe
+                pickaxe_dur=pickaxe_durability[pickaxe]
+                print(f"You upgraded to {pickaxe} Pickaxe!")
+            else: print(f"Not enough Gold. Cost: {cost}")
+        else: print("Pickaxe is max tier.")
+    elif upgrade_name=="sword":
+        if sword!="Mithril":
+            idx=sword_tiers.index(sword)
+            next_sword=sword_tiers[idx+1]
+            cost=sword_upgrade_costs.get(sword,0)
+            if gamemode=="creative" or gold>=cost:
+                if gamemode!="creative": gold-=cost
+                sword=next_sword
+                sword_dur=sword_durability[sword]
+                print(f"You upgraded to {sword} Sword!")
+            else: print(f"Not enough Gold. Cost: {cost}")
+        else: print("Sword is max tier.")
+    elif upgrade_name=="bag":
+        cost=200
+        if gamemode=="creative" or gold>=cost:
+            if gamemode!="creative": gold-=cost
+            bag_limit+=1
+            print(f"Bag expanded! New limit: {bag_limit}")
+        else: print(f"Not enough Gold. Cost: {cost}")
+    elif upgrade_name=="hp":
+        cost=500
+        if gamemode=="creative" or gold>=cost:
+            if gamemode!="creative": gold-=cost
+            hp+=20
+            print(f"Max HP increased by 20! Current HP: {hp}")
+        else: print(f"Not enough Gold. Cost: {cost}")
+    elif upgrade_name=="shield":
+        cost=150
+        if gamemode=="creative" or gold>=cost:
+            if gamemode!="creative": gold-=cost
+            bag["shield"]=shield_uses
+            print(f"Shield added! Uses: {shield_uses}")
+        else: print(f"Not enough Gold. Cost: {cost}")
+    else: print("Unknown upgrade.")
+
+def use_item(item_name):
+    global hp,xp,bag
+    if item_name not in bag or bag[item_name]<=0:
+        print("You don't have that item."); return
+    if item_name in food_items:
+        heal_amount=food_items[item_name]
+        actual_heal=min(heal_amount,100-hp)
+        overflow=heal_amount-actual_heal
+        hp+=actual_heal
+        if overflow>0:
+            xp+=overflow
+            print(f"HP full! Converted {overflow} excess into XP.")
+            level_up()
+        else: print(f"You used {item_name} and restored {actual_heal} HP.")
+    elif item_name=="shield":
+        bag["shield"]-=1
+        print(f"You used the shield. Remaining uses: {bag['shield']}")
+        if bag["shield"]<=0: del bag["shield"]; print("Your shield has broken!")
+    else: print(f"{item_name} cannot be used.")
+    if item_name in bag and bag[item_name]<=0: del bag[item_name]
+
+# --- Main Game Loop ---
+while True:
+    action=input("> ").lower().strip()
+    if action=="stats": show_stats()
+    elif action=="bag": show_bag()
+    elif action=="mine": mine()
+    elif action.startswith("sell "):
+        _,item=action.split(" ",1)
+        sell(item)
+    elif action=="help": show_help()
+    elif action.startswith("upgrade "):
+        get_upgrade(action.split()[1])
+    elif action.startswith("use "):
+        use_item(action.split()[1])
+    elif action=="save": export_save_code()
+    elif action.startswith("load "): import_save_code(action[5:])
+    elif gamemode=="creative":
+        if action.startswith("give "):
+            parts=action.split()
+            if len(parts)==3 and parts[2].isdigit():
+                item,amount=parts[1],int(parts[2])
+                if item in valid_items: bag[item]=bag.get(item,0)+amount; print(f"Gave {amount} {item}(s).")
+                else: print("Error: That item does not exist.")
+            else: print("Usage: give [item] [amount]")
+        elif action.startswith("sethp "): hp=int(action.split()[1])
+        elif action.startswith("setxp "): xp=int(action.split()[1])
+        elif action.startswith("setgold "): gold=int(action.split()[1])
+        elif action.startswith("setlevel "): level=int(action.split()[1])
+        elif action.startswith("setbag "): bag_limit=int(action.split()[1])
+        elif action.startswith("gamemode "):
+            gm=action.split()[1]
+            if gm in ["c","creative"]: gamemode="creative"; print("Gamemode set to Creative.")
+            elif gm in ["s","survival"]: gamemode="survival"; print("Gamemode set to Survival.")
+    else: print("Unknown command. Type 'help'.")
