@@ -228,7 +228,7 @@ def get_upgrade(upgrade_name):
             print(f"Bag expanded! New bag limit: {bag_limit}")
         else:
             print(f"Not enough Gold for Bag Expansion. Cost: {cost}")
-    elif upgrade_name == "maxhp":
+    elif upgrade_name == "hp":
         cost = 500
         if gamemode == "creative" or gold >= cost:
             if gamemode != "creative":
