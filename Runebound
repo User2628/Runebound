@@ -173,10 +173,10 @@ def show_help():
     print("stats - Show your stats")
     print("bag - Show your bag")
     print("mine - Mine ores and gain XP/Gold")
-    print("sell [ore] - Sell all of that ore in your bag")
+    print("sell - Sell all of that ore in your bag")
     print("sell all - Sell all ores in your bag")
-    print("upgrade [pickaxe/sword/bag/maxhp] - Buy an upgrade")
-    print("use [food/shield] - Use an item from your bag")
+    print("upgrade - Buy an upgrade")
+    print("use - Use an item from your bag")
     if gamemode == "creative":
         print("give [item] [amount] - Spawn items or ores")
         print("sethp [amount] - Set HP")
