@@ -1,1 +1,212 @@
+# Ask for the character's name once
+character_name = input("Enter your character's name: ")
+
+# Game mode selection
+game_mode = ""
+while game_mode.lower() not in ["survival", "creative"]:
+    game_mode = input("Select Game mode (Survival/Creative): ").strip()
+print(f"Welcome, {character_name}! You are playing in {game_mode.capitalize()} mode.")
+
+# Character stats
+hp = 100
+xp = 0
+level = 1
+gold = 0
+bag_slots = 6
+inventory = []
+xp_to_level = 100  # Fixed XP required for next level
+
+# Function to handle leveling up
+def check_level_up():
+    global xp, level
+    while xp >= xp_to_level:
+        xp -= xp_to_level
+        level += 1
+        print(f"*** Congratulations! {character_name} reached Level {level}! ***")
+
+# Function to display stats
+def display_stats():
+    print("-"*30)
+    print("         CHARACTER STATS")
+    print("-"*30)
+    print(f"Name:      {character_name}")
+    print(f"HP:        {hp}/100")
+    print(f"Level:     {level}")
+    print(f"XP:        {xp}/{xp_to_level}")
+    print(f"Gold:      {gold}")
+    print("-"*30)
+
+# Function to display bag contents
+def display_bag():
+    print("-"*30)
+    print(f"          BAG ({len(inventory)}/{bag_slots})")
+    print("-"*30)
+    if inventory:
+        for item in inventory:
+            print(f"- {item}")
+    else:
+        print("Bag is empty.")
+    print("-"*30)
+
+# Function for fuzzy case matching
+def match_command(input_cmd, command_list):
+    input_cmd_lower = input_cmd.lower()
+    for cmd in command_list:
+        if input_cmd_lower == cmd.lower():
+            return cmd
+    return None
+
+# Function to show help menu
+def display_help():
+    print("-"*30)
+    print("           HELP MENU")
+    print("-"*30)
+    print("stats  ---  Show your character's stats")
+    print("bag    ---  Show the contents of your bag")
+    print("use [item]  ---  Use an item from your bag")
+    if game_mode.lower() == "creative":
+        print("give [item] [amount]  ---  Add items, gold, or XP")
+        print("sethp [amount]  ---  Set your HP directly")
+        print("setxp [amount]  ---  Set your XP directly")
+        print("setgold [amount]  ---  Set your Gold directly")
+        print("setlevel [level]  ---  Set your level directly")
+        print("expandbag [slots]  ---  Increase your bag capacity")
+    print("-"*30)
+
+# List of valid commands
+valid_commands = ["stats", "use", "bag", "help"]
+
+# Items with HP restore values
+item_effects = {
+    "bread": 30,
+    "cheese": 20,
+    "apple": 15,
+    "golden_apple": 90
+}
+
+# Command-line loop
+while True:
+    command_input = input(f"{character_name}, what will you do next? ").strip()
+    if not command_input:
+        continue
+    command_parts = command_input.split()
+    base_command = command_parts[0].lower()
+    command = match_command(base_command, valid_commands)
+
+    # Show help
+    if command == "help":
+        display_help()
+
+    # Stats
+    elif command == "stats":
+        display_stats()
+
+    # Bag
+    elif command == "bag":
+        display_bag()
+
+    # Use items
+    elif base_command == "use" and len(command_parts) == 2:
+        item = command_parts[1].lower()
+        if item in inventory:
+            heal = item_effects.get(item, 0)
+            inventory.remove(item)
+            if hp < 100:
+                actual_heal = min(heal, 100 - hp)
+                hp += actual_heal
+                overflow = heal - actual_heal
+                if overflow > 0:
+                    xp += overflow
+                    print(f"{character_name} used {item}, restored {actual_heal} HP and gained {overflow} XP from overflow!")
+                else:
+                    print(f"{character_name} used {item} and restored {actual_heal} HP!")
+            else:
+                xp += heal
+                print(f"{character_name} used {item} and gained {heal} XP (HP is full)!")
+            if item == "golden_apple":
+                gold += 50
+                print(f"{character_name} also received 50 gold from the Golden Apple!")
+            check_level_up()
+        else:
+            print(f"{item} is not in your bag.")
+
+    # Creative mode hidden commands
+    elif game_mode.lower() == "creative":
+        # Give command
+        if base_command == "give" and len(command_parts) >= 2:
+            item_name = command_parts[1].lower()
+            amount = 1
+            if len(command_parts) == 3:
+                try:
+                    amount = int(command_parts[2])
+                    if amount < 1:
+                        raise ValueError
+                except ValueError:
+                    print("Invalid amount. Must be a positive integer.")
+                    continue
+            if item_name == "gold":
+                gold += amount
+                print(f"{character_name} received {amount} gold!")
+            elif item_name == "xp":
+                xp += amount
+                print(f"{character_name} received {amount} XP!")
+                check_level_up()
+            elif item_name in item_effects:
+                added = 0
+                for _ in range(amount):
+                    if len(inventory) < bag_slots:
+                        inventory.append(item_name)
+                        added += 1
+                    else:
+                        print("Bag is full! Cannot add more items.")
+                        break
+                if added > 0:
+                    print(f"{character_name} received {added} {item_name}{'s' if added>1 else ''}!")
+            else:
+                print(f"{item_name} is not a valid item or resource.")
+        # Other creative commands
+        elif base_command == "sethp" and len(command_parts) == 2:
+            try:
+                hp = int(command_parts[1])
+                if hp < 0: hp = 0
+                if hp > 100: hp = 100
+                print(f"{character_name}'s HP is now {hp}.")
+            except ValueError:
+                print("Invalid HP amount.")
+        elif base_command == "setxp" and len(command_parts) == 2:
+            try:
+                xp = int(command_parts[1])
+                if xp < 0: xp = 0
+                print(f"{character_name}'s XP is now {xp}.")
+                check_level_up()
+            except ValueError:
+                print("Invalid XP amount.")
+        elif base_command == "setgold" and len(command_parts) == 2:
+            try:
+                gold = int(command_parts[1])
+                if gold < 0: gold = 0
+                print(f"{character_name}'s Gold is now {gold}.")
+            except ValueError:
+                print("Invalid Gold amount.")
+        elif base_command == "setlevel" and len(command_parts) == 2:
+            try:
+                level = int(command_parts[1])
+                if level < 1: level = 1
+                print(f"{character_name} is now Level {level}.")
+            except ValueError:
+                print("Invalid Level.")
+        elif base_command == "expandbag" and len(command_parts) == 2:
+            try:
+                added_slots = int(command_parts[1])
+                if added_slots < 1:
+                    print("Must add at least 1 slot.")
+                    continue
+                bag_slots += added_slots
+                print(f"Bag capacity increased to {bag_slots} slots.")
+            except ValueError:
+                print("Invalid slot amount.")
+        else:
+            print("Unknown command or incorrect usage.")
+    else:
+        print("Unknown command or not allowed in this mode.")
 
