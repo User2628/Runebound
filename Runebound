@@ -1,0 +1,278 @@
+import random
+
+def main():
+    print("Welcome to Runebound!")
+    player_name = input("Enter your character's name: ")
+    print(f"{player_name} enters the world of Runebound.\n")
+
+    # Actions
+    actions = ["help", "shops", "bag", "stats", "mine"]
+
+    # Player stats & inventory
+    player_inventory = {
+        "Bread": 0, "Cheese": 0, "Apple": 0,
+        "XP Potion": 0, "Chance Potion": 0, "Key": 0,
+        "Common Crate": 0, "Mysterious Crate": 0,
+        "Shield": 0
+    }
+    player_gold = 150
+    player_hp = 100
+    max_hp = 100
+    bag_slots = 3
+    player_xp = 0
+    player_level = 1
+
+    # Pickaxes
+    pickaxe_tiers = {
+        "Wooden": {"swings": 10, "gold_min": 50, "gold_max": 100, "xp_min": 30, "xp_max": 45, "price": 50},
+        "Stone": {"swings": 20, "gold_min": 80, "gold_max": 150, "xp_min": 35, "xp_max": 50, "price": 150},
+        "Iron": {"swings": 35, "gold_min": 120, "gold_max": 225, "xp_min": 40, "xp_max": 55, "price": 300},
+        "Steel": {"swings": 50, "gold_min": 180, "gold_max": 275, "xp_min": 45, "xp_max": 60, "price": 600},
+        "Mithril": {"swings": 75, "gold_min": 220, "gold_max": 325, "xp_min": 50, "xp_max": 70, "price": 1000}
+    }
+    player_pickaxe = "Wooden"
+    pickaxe_swings_left = pickaxe_tiers[player_pickaxe]["swings"]
+
+    # Swords
+    sword_tiers = {
+        "Wooden": {"durability": 10, "damage_min": 5, "damage_max": 10, "price": 50},
+        "Stone": {"durability": 20, "damage_min": 8, "damage_max": 14, "price": 150},
+        "Iron": {"durability": 35, "damage_min": 12, "damage_max": 20, "price": 300},
+        "Steel": {"durability": 50, "damage_min": 18, "damage_max": 28, "price": 600},
+        "Mithril": {"durability": 75, "damage_min": 25, "damage_max": 40, "price": 1000}
+    }
+    player_sword = "Wooden"
+    sword_durability = sword_tiers[player_sword]["durability"]
+
+    # Shops
+    shops = {
+        "Market": {"Bread": 20, "Cheese": 25, "Apple": 10},
+        "Merchant": {"Pocket": 50, "Key": 50, "Shield": 50},
+        "Witch": {"XP Potion": 50, "Chance Potion": 50},
+        "Crate Shop": {"Common Crate": 50},
+        "Pickaxe Shop": {f"{tier} Pickaxe": info["price"] for tier, info in pickaxe_tiers.items()},
+        "Sword Shop": {f"{tier} Sword": info["price"] for tier, info in sword_tiers.items()}
+    }
+
+    while True:
+        command = input("> ").strip().lower()
+
+        if command == "help":
+            print("\n" + "-"*30)
+            print("        AVAILABLE ACTIONS")
+            print("-"*30)
+            for a in actions:
+                if a != "help":
+                    print(f"- {a}")
+            print("-"*30 + "\n")
+
+        elif command == "shops":
+            print("\nShops Available:")
+            for shop in shops:
+                print(f"- {shop}")
+            shop_choice = input("Enter shop name: ").strip().title()
+            if shop_choice in shops:
+                shop_inventory = shops[shop_choice]
+                print(f"\nWelcome to {shop_choice}!")
+                for item, price in shop_inventory.items():
+                    print(f"{item}: {price} gold")
+                choice = input("Buy item or type 'leave': ").strip().title()
+                if choice == "Leave":
+                    continue
+                if choice in shop_inventory:
+                    cost = shop_inventory[choice]
+                    if player_gold >= cost:
+                        if "Pickaxe" in choice:
+                            tier_name = choice.split()[0]
+                            player_gold -= cost
+                            player_pickaxe = tier_name
+                            pickaxe_swings_left = pickaxe_tiers[tier_name]["swings"]
+                            print(f"Bought {tier_name} Pickaxe! Swings: {pickaxe_swings_left}")
+                        elif "Sword" in choice:
+                            tier_name = choice.split()[0]
+                            player_gold -= cost
+                            player_sword = tier_name
+                            sword_durability = sword_tiers[tier_name]["durability"]
+                            print(f"Bought {tier_name} Sword! Durability: {sword_durability}")
+                        else:
+                            if sum(player_inventory.values()) < bag_slots:
+                                player_gold -= cost
+                                player_inventory[choice] += 1
+                                print(f"Bought 1 {choice}. Gold left: {player_gold}")
+                            else:
+                                print("Bag full! Cannot buy item.")
+                    else:
+                        print("Not enough gold!")
+                else:
+                    print("Item not found.")
+            else:
+                print("Shop not found.")
+
+        elif command == "bag":
+            print("\nBAG:")
+            empty = True
+            for item, qty in player_inventory.items():
+                if qty > 0:
+                    print(f"- {item}: {qty}")
+                    empty = False
+            if empty:
+                print("(Empty)")
+            print(f"Bag slots: {sum(player_inventory.values())}/{bag_slots}\n")
+
+        elif command.startswith("use "):
+            item_name = command[4:].title()
+            if item_name in player_inventory and player_inventory[item_name] > 0:
+                player_inventory[item_name] -= 1
+                if item_name == "Bread":
+                    player_hp += 20
+                elif item_name == "Cheese":
+                    player_hp += 25
+                elif item_name == "Apple":
+                    player_hp += 10
+                elif item_name == "XP Potion":
+                    player_xp += 50
+                    if player_xp >= 100:
+                        player_xp -= 100
+                        player_level += 1
+                        print(f"Leveled up to {player_level}!")
+                elif item_name == "Chance Potion":
+                    roll = random.randint(1,100)
+                    effect_msg = ""
+                    if roll <= 30:
+                        player_hp += 20
+                        effect_msg = "Healed 20 HP"
+                    elif roll <= 60:
+                        player_xp += 50
+                        effect_msg = "Gained 50 XP"
+                    elif roll <= 80:
+                        player_gold += 50
+                        effect_msg = "Gained 50 Gold"
+                    elif roll <= 90:
+                        player_hp -= 20
+                        effect_msg = "Lost 20 HP"
+                    else:
+                        player_gold -= 50
+                        effect_msg = "Lost 50 Gold"
+                    print(f"Used Chance Potion! {effect_msg}")
+                elif item_name == "Key":
+                    crate_name = next((c for c in player_inventory if "Crate" in c and player_inventory[c] > 0), None)
+                    if crate_name:
+                        player_inventory[crate_name] -= 1
+                        gold_reward = random.randint(40,60)
+                        xp_reward = random.randint(30,40)
+                        food_reward = random.choice(["Bread","Cheese","Apple"])
+                        player_gold += gold_reward
+                        player_xp += xp_reward
+                        player_inventory[food_reward] += 1
+                        print(f"Opened {crate_name}! Got {gold_reward} Gold, {xp_reward} XP, and 1 {food_reward}")
+                    else:
+                        print("No crate to open.")
+                elif item_name == "Shield":
+                    print("Cannot use Shield directly. It automatically applies in combat.")
+                player_hp = min(player_hp, max_hp)
+            else:
+                print(f"No {item_name} in bag.")
+
+        elif command == "stats":
+            print("\nSTATS:")
+            print(f"Name: {player_name}")
+            print(f"Level: {player_level}  XP: {player_xp}/100")
+            print(f"HP: {player_hp}/{max_hp}")
+            print(f"Gold: {player_gold}")
+            print(f"Pickaxe: {player_pickaxe} (Swings left: {pickaxe_swings_left})")
+            print(f"Sword: {player_sword} (Durability: {sword_durability})")
+            print(f"Shield uses: {player_inventory['Shield']}\n")
+
+        elif command == "mine":
+            # Mining reward
+            tier = player_pickaxe
+            gold_reward = random.randint(pickaxe_tiers[tier]["gold_min"], pickaxe_tiers[tier]["gold_max"])
+            xp_reward = random.randint(pickaxe_tiers[tier]["xp_min"], pickaxe_tiers[tier]["xp_max"])
+
+            # Monster encounter 15%
+            if random.randint(1,100) <= 15:
+                monster_list = [
+                    {"name": "Goblin","hp":50,"attack_min":5,"attack_max":10},
+                    {"name": "Skeleton","hp":40,"attack_min":4,"attack_max":12},
+                    {"name": "Zombie","hp":60,"attack_min":6,"attack_max":8},
+                    {"name": "Wizard","hp":35,"attack_min":7,"attack_max":15}
+                ]
+                monster = random.choice(monster_list)
+                print(f"A wild {monster['name']} appeared! HP: {monster['hp']}")
+                block_next = False
+                while monster['hp']>0 and player_hp>0:
+                    action = input("Attack, block, or flee? ").strip().lower()
+                    if action=="attack":
+                        dmg = random.randint(sword_tiers[player_sword]["damage_min"], sword_tiers[player_sword]["damage_max"])
+                        monster['hp'] -= dmg
+                        sword_durability -= 1
+                        print(f"You hit {monster['name']} for {dmg}! Monster HP: {max(monster['hp'],0)}")
+                        if sword_durability <=0:
+                            print(f"{player_sword} Sword broke!")
+                            player_sword = "Wooden"
+                            sword_durability = sword_tiers["Wooden"]["durability"]
+                    elif action=="block":
+                        if player_inventory["Shield"]>0:
+                            block_next=True
+                            player_inventory["Shield"]-=1
+                            print("You brace for the next attack! Shield uses left:",player_inventory["Shield"])
+                        else:
+                            print("No shield to block!")
+                    elif action=="flee":
+                        if random.randint(1,100)<=50:
+                            print("You successfully fled!")
+                            break
+                        else:
+                            print("Failed to flee!")
+                    else:
+                        print("Invalid action.")
+
+                    if monster['hp']<=0: break
+                    if action!="flee":
+                        if block_next:
+                            print(f"The {monster['name']} attacks but you block it!")
+                            block_next=False
+                        else:
+                            m_dmg = random.randint(monster['attack_min'], monster['attack_max'])
+                            player_hp -= m_dmg
+                            print(f"The {monster['name']} hits you for {m_dmg}! Your HP: {max(player_hp,0)}")
+                        if player_hp<=0:
+                            print("You were defeated while mining! HP restored.")
+                            player_hp = max_hp
+                            break
+
+                if monster['hp']<=0:
+                    fight_gold = random.randint(20,50)
+                    fight_xp = random.randint(10,30)
+                    player_gold += fight_gold
+                    player_xp += fight_xp
+                    print(f"Defeated {monster['name']}! Gained {fight_gold} Gold and {fight_xp} XP.")
+
+            if player_hp>0:
+                player_gold += gold_reward
+                player_xp += xp_reward
+                pickaxe_swings_left -=1
+                if pickaxe_swings_left<=0:
+                    print(f"{player_pickaxe} Pickaxe broke!")
+                    player_pickaxe="Wooden"
+                    pickaxe_swings_left=pickaxe_tiers["Wooden"]["swings"]
+
+                if random.randint(1,100)<=5:
+                    if any(player_inventory[c]>0 for c in player_inventory if "Crate" in c):
+                        print("Found a Mysterious Crate but cannot carry more than one crate!")
+                    else:
+                        player_inventory["Mysterious Crate"]+=1
+                        print("You found a Mysterious Crate!")
+
+                if player_xp>=100:
+                    player_xp-=100
+                    player_level+=1
+                    print(f"You leveled up to {player_level}!")
+
+                print(f"Mining yields: {gold_reward} Gold and {xp_reward} XP.")
+
+        else:
+            print("Unknown command. Type 'help' to see actions.")
+
+if __name__=="__main__":
+    main()
