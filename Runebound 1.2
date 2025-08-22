@@ -68,6 +68,9 @@ def show_bag():
 
 def mine():
     global xp, gold, pickaxe_dur, pickaxe, bag
+    if len(bag) >= bag_limit:
+        print("Your bag is full! Cannot mine until you free space.")
+        return
     rewards = pickaxe_rewards[pickaxe]
     xp += rewards["xp"]
     gold += rewards["gold"]
@@ -85,8 +88,11 @@ def mine():
     if available_ores:
         ore, value = random.choice(list(available_ores.items()))
         amount = random.randint(1,3)
-        bag[ore] = bag.get(ore,0)+amount
-        print(f"You mined and found {amount} {ore}(s)!")
+        if len(bag) < bag_limit:
+            bag[ore] = bag.get(ore,0)+amount
+            print(f"You mined and found {amount} {ore}(s)!")
+        else:
+            print(f"You found {amount} {ore}(s) but your bag is full!")
 
 def sell(item):
     global gold
@@ -96,27 +102,23 @@ def sell(item):
         for ore, amount in list(bag.items()):
             ore_value = get_ore_value(ore)
             if ore_value>0:
-                gold+=ore_value*amount
-                total_gold+=ore_value*amount
+                gold += ore_value * amount
+                total_gold += ore_value * amount
                 del bag[ore]
-                sold_any=True
-        if sold_any:
-            print(f"You sold all ores for {total_gold} Gold.")
-        else:
-            print("You have no ores to sell.")
+                sold_any = True
+        if sold_any: print(f"You sold all ores for {total_gold} Gold.")
+        else: print("You have no ores to sell.")
     else:
         if item in bag:
-            ore_value=get_ore_value(item)
+            ore_value = get_ore_value(item)
             if ore_value>0:
-                amount=bag[item]
-                gold_gain=ore_value*amount
-                gold+=gold_gain
+                amount = bag[item]
+                gold_gain = ore_value * amount
+                gold += gold_gain
                 print(f"You sold {amount} {item}(s) for {gold_gain} Gold.")
                 del bag[item]
-            else:
-                print("That item cannot be sold as ore.")
-        else:
-            print("You don't have that ore.")
+            else: print("That item cannot be sold as ore.")
+        else: print("You don't have that ore.")
 
 def get_ore_value(ore):
     all_ores = get_all_ores()
@@ -252,6 +254,10 @@ def use_item(item_name):
     global hp,xp,bag
     if item_name not in bag or bag[item_name]<=0:
         print("You don't have that item."); return
+
+    # Decrement count first
+    bag[item_name]-=1
+
     if item_name in food_items:
         heal_amount=food_items[item_name]
         actual_heal=min(heal_amount,100-hp)
@@ -263,11 +269,11 @@ def use_item(item_name):
             level_up()
         else: print(f"You used {item_name} and restored {actual_heal} HP.")
     elif item_name=="shield":
-        bag["shield"]-=1
-        print(f"You used the shield. Remaining uses: {bag['shield']}")
-        if bag["shield"]<=0: del bag["shield"]; print("Your shield has broken!")
+        print(f"You used the shield. Remaining uses: {bag.get('shield',0)}")
+        if bag.get("shield",0)<=0: del bag["shield"]; print("Your shield has broken!")
     else: print(f"{item_name} cannot be used.")
-    if item_name in bag and bag[item_name]<=0: del bag[item_name]
+
+    if bag[item_name]<=0: del bag[item_name]
 
 # --- Main Game Loop ---
 while True:
@@ -289,8 +295,10 @@ while True:
             parts=action.split()
             if len(parts)==3 and parts[2].isdigit():
                 item,amount=parts[1],int(parts[2])
-                if item in valid_items: bag[item]=bag.get(item,0)+amount; print(f"Gave {amount} {item}(s).")
-                else: print("Error: That item does not exist.")
+                if len(bag)<bag_limit:
+                    bag[item]=bag.get(item,0)+amount
+                    print(f"Gave {amount} {item}(s).")
+                else: print("Bag full!")
             else: print("Usage: give [item] [amount]")
         elif action.startswith("sethp "): hp=int(action.split()[1])
         elif action.startswith("setxp "): xp=int(action.split()[1])
