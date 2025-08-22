@@ -61,6 +61,18 @@ ores_by_tier = {
     "Mithril": {"mithril_ore": 75},
 }
 
+# --- Food Items ---
+food_items = {
+    "bread": 30,
+    "cheese": 20,
+    "apple": 15,
+    "golden_apple": 90,
+    "carrot": 10
+}
+
+# --- Valid Items for Give Command ---
+valid_items = set(list(food_items.keys()) + ["gold"] + list(get_all_ores()))
+
 # --- Helper Functions ---
 def level_up():
     global xp, level
@@ -247,8 +259,11 @@ while True:
             parts = action.split()
             if len(parts) == 3 and parts[2].isdigit():
                 item, amount = parts[1], int(parts[2])
-                bag[item] = bag.get(item, 0) + amount
-                print(f"Gave {amount} {item}(s).")
+                if item in valid_items:
+                    bag[item] = bag.get(item, 0) + amount
+                    print(f"Gave {amount} {item}(s).")
+                else:
+                    print("Error: That item does not exist.")
             else:
                 print("Usage: give [item] [amount]")
         elif action.startswith("sethp "):
